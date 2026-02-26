@@ -1,5 +1,5 @@
 # chomper-man
-AI generated game like flappy birds but takes an image of a friend/family member
+AI generated game takes an image of a friend/family member. See how far you can get. A bit of fun with the kids prior to bed time.
 
 ## Play Online
 The game is automatically deployed to GitHub Pages and is accessible at:

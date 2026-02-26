@@ -316,26 +316,26 @@ const startBtn        = document.getElementById('startBtn');
 // ═══════════════════════════════════════════════════════
 // BACKGROUND REMOVAL (lazy-loaded AI library)
 // ═══════════════════════════════════════════════════════
-const _bgRemovalPromise = import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/index.browser.mjs')
-  .then(m => m.removeBackground)
-  .catch(() => null);
-
-function readFileAsDataURL(file) {
-  return new Promise(resolve => {
-    const reader = new FileReader();
-    reader.onload = ev => resolve(ev.target.result);
-    reader.readAsDataURL(file);
+const _bgRemovalPromise = import('https://esm.sh/@imgly/background-removal@1.4.5')
+  .then(m => {
+    console.log('bg removal module loaded', m);
+    return m.removeBackground;
+  })
+  .catch(err => {
+    console.error('bg removal import failed', err);
+    return null;
   });
-}
 
 async function applyBgRemoval(file) {
   const removeBackground = await _bgRemovalPromise;
   if (!removeBackground) return null;
+
   try {
     const blob = await removeBackground(file);
+    console.log('bg removal succeeded, blob:', blob);
     return URL.createObjectURL(blob);
   } catch (e) {
-    console.warn('Background removal failed, using original image:', e);
+    console.error('Background removal failed', e);
     return null;
   }
 }

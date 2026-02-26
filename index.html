@@ -89,6 +89,45 @@
     #startBtn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,200,0,0.5); }
     #startBtn:disabled { background: #555; color: #888; cursor: not-allowed; box-shadow: none; }
 
+    /* ── CAMERA BUTTON ── */
+    #cameraBtn {
+      display: block;
+      width: 100%;
+      background: rgba(255,255,255,0.08);
+      color: #ddd;
+      border: 1px solid rgba(255,255,255,0.22);
+      padding: 9px 18px;
+      font-size: 0.95em;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 12px;
+    }
+    #cameraBtn:hover { background: rgba(255,255,255,0.18); }
+
+    /* ── DIFFICULTY SELECTOR ── */
+    .difficulty-wrap { margin: 12px 0; }
+    .difficulty-wrap > span { display: block; color: #bbb; font-size: 0.88em; margin-bottom: 8px; }
+    .difficulty-btns { display: flex; gap: 8px; }
+    .diff-btn {
+      flex: 1;
+      padding: 8px 4px;
+      border-radius: 10px;
+      border: 2px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.05);
+      color: #ccc;
+      cursor: pointer;
+      font-size: 0.88em;
+      transition: all 0.2s;
+    }
+    .diff-btn:hover { background: rgba(255,255,255,0.12); }
+    .diff-btn.selected {
+      border-color: #ffd700;
+      background: rgba(255,215,0,0.14);
+      color: #ffd700;
+      font-weight: bold;
+    }
+
     /* ── GAME CONTAINER ── */
     #gameWrap { display: none; position: relative; }
     #gameCanvas { display: block; border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
@@ -172,6 +211,8 @@
     <p class="hint">Your face becomes the chomping game character!</p>
   </div>
   <input type="file" id="imageUpload" accept="image/*">
+  <input type="file" id="cameraCapture" accept="image/*" capture="user" style="display:none" aria-label="Capture photo with camera">
+  <button id="cameraBtn" aria-label="Take Photo with Camera"><span aria-hidden="true">📷</span> Take Photo with Camera</button>
 
   <div id="previewWrap" style="display:none">
     <img id="preview" src="" alt="Face preview">
@@ -183,6 +224,15 @@
     <div>⬇️ <b>Down Arrow / S</b> &mdash; Move down</div>
     <div>🪙 Collect gold coins to earn points</div>
     <div>🧱 Dodge the green pipes — or it's game over!</div>
+  </div>
+
+  <div class="difficulty-wrap">
+    <span>🎮 Select Difficulty:</span>
+    <div class="difficulty-btns">
+      <button class="diff-btn" data-speed="1.5" aria-label="Easy difficulty">🟢 Easy</button>
+      <button class="diff-btn selected" data-speed="2.5" aria-label="Medium difficulty">🟡 Medium</button>
+      <button class="diff-btn" data-speed="4.0" aria-label="Hard difficulty">🔴 Hard</button>
+    </div>
   </div>
 
   <button id="startBtn" disabled>▶ Start Game</button>
@@ -263,6 +313,7 @@ const gameWrap        = document.getElementById('gameWrap');
 const gameOverOverlay = document.getElementById('gameOverOverlay');
 const uploadArea      = document.getElementById('uploadArea');
 const fileInput       = document.getElementById('imageUpload');
+const cameraInput     = document.getElementById('cameraCapture');
 const previewEl       = document.getElementById('preview');
 const previewWrap     = document.getElementById('previewWrap');
 const startBtn        = document.getElementById('startBtn');
@@ -271,6 +322,9 @@ const startBtn        = document.getElementById('startBtn');
 // UPLOAD / PREVIEW
 // ═══════════════════════════════════════════════════════
 uploadArea.addEventListener('click', () => fileInput.click());
+
+document.getElementById('cameraBtn').addEventListener('click', () => cameraInput.click());
+cameraInput.addEventListener('change', e => loadImageFile(e.target.files[0]));
 
 uploadArea.addEventListener('dragover', e => {
   e.preventDefault();
@@ -286,6 +340,19 @@ uploadArea.addEventListener('drop', e => {
 });
 
 fileInput.addEventListener('change', e => loadImageFile(e.target.files[0]));
+
+// ═══════════════════════════════════════════════════════
+// DIFFICULTY SELECTION
+// ═══════════════════════════════════════════════════════
+let selectedSpeed = 2.5;  // default: Medium
+
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedSpeed = parseFloat(btn.dataset.speed);
+  });
+});
 
 function loadImageFile(file) {
   if (!file || !file.type.startsWith('image/')) return;
@@ -349,7 +416,7 @@ addHoldEvents(document.getElementById('downBtn'), 'ArrowDown');
 function initGame() {
   score      = 0;
   frame      = 0;
-  speed      = 2.5;
+  speed      = selectedSpeed;
   nextPipeAt = 130;
   playerY    = (CEIL_Y + GROUND_Y) / 2;
   obstacles  = [];

@@ -51,16 +51,21 @@
     .upload-area p { color: #ddd; font-size: 1.05em; }
     .upload-area .hint { color: #888; font-size: 0.85em; margin-top: 5px; }
 
-    #imageUpload { display: none; }
-
-    #previewWrap { margin: 10px 0; }
-    #preview {
-      width: 110px; height: 110px;
+    /* ── TWO-SLOT UPLOAD GRID ── */
+    .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px; }
+    .upload-slot { display: flex; flex-direction: column; align-items: center; }
+    .slot-label { color: #ffd700; font-size: 0.9em; font-weight: bold; margin-bottom: 6px; }
+    .upload-slot .upload-area { padding: 16px 8px; margin-bottom: 0; width: 100%; }
+    .upload-slot .upload-area p { font-size: 0.88em; }
+    .slot-preview {
+      width: 78px; height: 78px;
       border-radius: 50%; object-fit: cover;
-      border: 3px solid #ffd700;
-      box-shadow: 0 0 14px rgba(255,215,0,0.35);
+      border: 2px solid #ffd700;
+      box-shadow: 0 0 10px rgba(255,215,0,0.3);
+      margin-top: 8px;
     }
-    #previewLabel { color: #aaa; font-size: 0.85em; margin-top: 5px; }
+    .slot-processing { color: #aaa; font-size: 0.8em; margin-top: 6px; display: none; }
+    .bg-removal-note { color: #777; font-size: 0.78em; margin: 4px 0 10px; }
 
     .instructions {
       background: rgba(255,255,255,0.05);
@@ -89,22 +94,6 @@
     #startBtn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,200,0,0.5); }
     #startBtn:disabled { background: #555; color: #888; cursor: not-allowed; box-shadow: none; }
 
-    /* ── CAMERA BUTTON ── */
-    #cameraBtn {
-      display: block;
-      width: 100%;
-      background: rgba(255,255,255,0.08);
-      color: #ddd;
-      border: 1px solid rgba(255,255,255,0.22);
-      padding: 9px 18px;
-      font-size: 0.95em;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
-      margin-bottom: 12px;
-    }
-    #cameraBtn:hover { background: rgba(255,255,255,0.18); }
-
     /* ── DIFFICULTY SELECTOR ── */
     .difficulty-wrap { margin: 12px 0; }
     .difficulty-wrap > span { display: block; color: #bbb; font-size: 0.88em; margin-bottom: 8px; }
@@ -130,7 +119,7 @@
 
     /* ── GAME CONTAINER ── */
     #gameWrap { display: none; position: relative; }
-    #gameCanvas { display: block; border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
+    #gameCanvas { display: block; max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
 
     /* On-screen directional buttons */
     #touchControls {
@@ -206,18 +195,29 @@
   <h1>😄 Chomper Man</h1>
   <p class="subtitle">The face-chomping side-scroller!</p>
 
-  <div class="upload-area" id="uploadArea">
-    <p>📸 Click to upload your face photo</p>
-    <p class="hint">Your face becomes the chomping game character!</p>
+  <div class="upload-grid">
+    <div class="upload-slot">
+      <span class="slot-label">😄 Mouth Open</span>
+      <div class="upload-area" id="uploadAreaOpen">
+        <p>📸 Upload photo</p>
+        <p class="hint">With mouth open</p>
+      </div>
+      <input type="file" id="imageUploadOpen" accept="image/*" style="display:none">
+      <p class="slot-processing" id="processingOpen">🤖 Processing…</p>
+      <img class="slot-preview" id="previewOpen" src="" alt="Mouth open preview" style="display:none">
+    </div>
+    <div class="upload-slot">
+      <span class="slot-label">😐 Mouth Closed</span>
+      <div class="upload-area" id="uploadAreaClosed">
+        <p>📸 Upload photo</p>
+        <p class="hint">With mouth closed</p>
+      </div>
+      <input type="file" id="imageUploadClosed" accept="image/*" style="display:none">
+      <p class="slot-processing" id="processingClosed">🤖 Processing…</p>
+      <img class="slot-preview" id="previewClosed" src="" alt="Mouth closed preview" style="display:none">
+    </div>
   </div>
-  <input type="file" id="imageUpload" accept="image/*">
-  <input type="file" id="cameraCapture" accept="image/*" capture="user" style="display:none" aria-label="Capture photo with camera">
-  <button id="cameraBtn" aria-label="Take Photo with Camera"><span aria-hidden="true">📷</span> Take Photo with Camera</button>
-
-  <div id="previewWrap" style="display:none">
-    <img id="preview" src="" alt="Face preview">
-    <p id="previewLabel">Looking great — ready to chomp! 🎉</p>
-  </div>
+  <p class="bg-removal-note">🤖 Background removed automatically using AI</p>
 
   <div class="instructions">
     <div>⬆️ <b>Up Arrow / W</b> &mdash; Move up</div>
@@ -267,14 +267,13 @@
 // ═══════════════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════════════
-const CANVAS_W        = 800;
-const CANVAS_H        = 450;
-const GROUND_Y        = 400;  // y-coordinate of ground surface
-const CEIL_Y          = 40;   // y-coordinate of ceiling
-const PLAYER_X        = 140;  // fixed horizontal position of player centre
-const PLAYER_R        = 38;   // player (face circle) radius in px
-const MOVE_SPEED      = 5;    // vertical px per frame when key held
-const FACE_SPLIT_FRAC = 0.52; // face split point for jaw animation (52% down — centred for big T&P flap)
+const CANVAS_W   = 800;
+const CANVAS_H   = 450;
+const GROUND_Y   = 400;  // y-coordinate of ground surface
+const CEIL_Y     = 40;   // y-coordinate of ceiling
+const PLAYER_X   = 140;  // fixed horizontal position of player centre
+const PLAYER_R   = 38;   // player (face circle) radius in px
+const MOVE_SPEED = 5;    // vertical px per frame when key held
 
 // ═══════════════════════════════════════════════════════
 // CANVAS
@@ -287,7 +286,8 @@ canvas.height = CANVAS_H;
 // ═══════════════════════════════════════════════════════
 // GAME STATE
 // ═══════════════════════════════════════════════════════
-let playerImg  = null;   // loaded HTMLImageElement
+let playerImgOpen   = null;  // HTMLImageElement — mouth open
+let playerImgClosed = null;  // HTMLImageElement — mouth closed
 let playerY    = 0;      // player centre Y
 let score      = 0;
 let bestScore  = 0;
@@ -304,7 +304,6 @@ let particles   = [];    // { x, y, vx, vy, life, maxLife }
 let floatTexts  = [];    // { x, y, life, maxLife }
 let clouds      = [];    // { x, y, scale }
 let bgStripe    = 0;     // ground stripe scroll offset
-let jawPhase    = 0;     // jaw animation angle (radians)
 
 // ═══════════════════════════════════════════════════════
 // UI REFS
@@ -312,35 +311,98 @@ let jawPhase    = 0;     // jaw animation angle (radians)
 const uploadScreen    = document.getElementById('uploadScreen');
 const gameWrap        = document.getElementById('gameWrap');
 const gameOverOverlay = document.getElementById('gameOverOverlay');
-const uploadArea      = document.getElementById('uploadArea');
-const fileInput       = document.getElementById('imageUpload');
-const cameraInput     = document.getElementById('cameraCapture');
-const previewEl       = document.getElementById('preview');
-const previewWrap     = document.getElementById('previewWrap');
 const startBtn        = document.getElementById('startBtn');
+
+// ═══════════════════════════════════════════════════════
+// BACKGROUND REMOVAL (lazy-loaded AI library)
+// ═══════════════════════════════════════════════════════
+const _bgRemovalPromise = import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/index.browser.mjs')
+  .then(m => m.removeBackground)
+  .catch(() => null);
+
+function readFileAsDataURL(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = ev => resolve(ev.target.result);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function applyBgRemoval(file) {
+  const removeBackground = await _bgRemovalPromise;
+  if (!removeBackground) return null;
+  try {
+    const blob = await removeBackground(file);
+    return URL.createObjectURL(blob);
+  } catch (e) {
+    console.warn('Background removal failed, using original image:', e);
+    return null;
+  }
+}
 
 // ═══════════════════════════════════════════════════════
 // UPLOAD / PREVIEW
 // ═══════════════════════════════════════════════════════
-uploadArea.addEventListener('click', () => fileInput.click());
+function updateStartBtn() {
+  startBtn.disabled = !(playerImgOpen || playerImgClosed);
+}
 
-document.getElementById('cameraBtn').addEventListener('click', () => cameraInput.click());
-cameraInput.addEventListener('change', e => loadImageFile(e.target.files[0]));
+async function loadImageSlot(slot, file) {
+  if (!file || !file.type.startsWith('image/')) return;
 
-uploadArea.addEventListener('dragover', e => {
-  e.preventDefault();
-  uploadArea.style.borderColor = '#ffd700';
-});
-uploadArea.addEventListener('dragleave', () => {
-  uploadArea.style.borderColor = '';
-});
-uploadArea.addEventListener('drop', e => {
-  e.preventDefault();
-  uploadArea.style.borderColor = '';
-  loadImageFile(e.dataTransfer.files[0]);
-});
+  const isOpen      = slot === 'open';
+  const processingEl = document.getElementById(isOpen ? 'processingOpen' : 'processingClosed');
+  const previewEl    = document.getElementById(isOpen ? 'previewOpen'    : 'previewClosed');
+  const uploadArea   = document.getElementById(isOpen ? 'uploadAreaOpen' : 'uploadAreaClosed');
 
-fileInput.addEventListener('change', e => loadImageFile(e.target.files[0]));
+  // Show processing state
+  processingEl.style.display = 'block';
+  previewEl.style.display    = 'none';
+  uploadArea.style.opacity   = '0.5';
+
+  // Try AI background removal; fall back to raw data URL
+  let src = await applyBgRemoval(file);
+  if (!src) {
+    src = await readFileAsDataURL(file);
+  }
+
+  const img   = new Image();
+  img.src     = src;
+  img.onload  = () => {
+    if (isOpen) playerImgOpen   = img;
+    else        playerImgClosed = img;
+    previewEl.src              = src;
+    previewEl.style.display    = 'block';
+    processingEl.style.display = 'none';
+    uploadArea.style.opacity   = '1';
+    updateStartBtn();
+  };
+}
+
+function setupSlot(slot) {
+  const isOpen    = slot === 'open';
+  const areaId    = isOpen ? 'uploadAreaOpen'   : 'uploadAreaClosed';
+  const inputId   = isOpen ? 'imageUploadOpen'  : 'imageUploadClosed';
+  const area      = document.getElementById(areaId);
+  const input     = document.getElementById(inputId);
+
+  area.addEventListener('click', () => input.click());
+  input.addEventListener('change', e => loadImageSlot(slot, e.target.files[0]));
+
+  area.addEventListener('dragover', e => {
+    e.preventDefault();
+    area.style.borderColor = '#ffd700';
+  });
+  area.addEventListener('dragleave', () => { area.style.borderColor = ''; });
+  area.addEventListener('drop', e => {
+    e.preventDefault();
+    area.style.borderColor = '';
+    loadImageSlot(slot, e.dataTransfer.files[0]);
+  });
+}
+
+setupSlot('open');
+setupSlot('closed');
 
 // ═══════════════════════════════════════════════════════
 // DIFFICULTY SELECTION
@@ -355,18 +417,7 @@ document.querySelectorAll('.diff-btn').forEach(btn => {
   });
 });
 
-function loadImageFile(file) {
-  if (!file || !file.type.startsWith('image/')) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    previewEl.src = ev.target.result;
-    previewWrap.style.display = 'block';
-    startBtn.disabled = false;
-    playerImg = new Image();
-    playerImg.src = ev.target.result;
-  };
-  reader.readAsDataURL(file);
-}
+// (removed: loadImageFile — replaced by loadImageSlot above)
 
 // ═══════════════════════════════════════════════════════
 // SCREEN TRANSITIONS
@@ -444,7 +495,6 @@ function initGame() {
   particles  = [];
   floatTexts = [];
   bgStripe   = 0;
-  jawPhase   = 0;
 
   clouds = Array.from({ length: 5 }, (_, i) => ({
     x: i * 180 + 60,
@@ -541,21 +591,6 @@ function update() {
   }
   if (keys['ArrowDown'] || keys['s'] || keys['S']) {
     playerY = Math.min(GROUND_Y - PLAYER_R, playerY + MOVE_SPEED);
-  }
-
-  // Jaw opens only when a coin is nearby (within 160 px)
-  const COIN_OPEN_DIST_SQ = 160 * 160;
-  let nearestCoinDistSq = Infinity;
-  for (const c of coins) {
-    if (c.collected) continue;
-    const dx = PLAYER_X - c.x;
-    const dy = playerY  - c.y;
-    nearestCoinDistSq = Math.min(nearestCoinDistSq, dx * dx + dy * dy);
-  }
-  if (nearestCoinDistSq < COIN_OPEN_DIST_SQ) {
-    jawPhase += 0.18;
-  } else {
-    jawPhase = 0;
   }
 
   // Ground stripe scroll
@@ -730,12 +765,11 @@ function drawCoins() {
 }
 
 // ═══════════════════════════════════════════════════════
-// DRAW — PLAYER (Terrance & Phillip jaw animation)
+// DRAW — PLAYER (image swap: mouth-open near coins, mouth-closed otherwise)
 // ═══════════════════════════════════════════════════════
 
 /**
  * Draw img cropped to fill the rect (x,y,w,h) — object-fit: cover behaviour.
- * Called inside an already-clipped context.
  */
 function drawImgCover(img, x, y, w, h) {
   const aspectRatio       = img.naturalWidth / img.naturalHeight;
@@ -765,50 +799,27 @@ function drawPlayer() {
   ctx.ellipse(cx, GROUND_Y - 1, r * 0.65, 8, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Terrance & Phillip style: snappy wide jaw drop.
-  // pow(0.4) makes the jaw snap open fast, hold wide, then snap shut — comedic floppy effect.
-  const jawRaw    = Math.abs(Math.sin(jawPhase));
-  const jawOpen   = Math.pow(jawRaw, 0.4) * 26;   // up to 26 px, snappy open
-  const splitFrac = FACE_SPLIT_FRAC;
-  const splitRelY = diam * splitFrac;              // px from top of bounding square
-  // "Hinged head": upper face tilts back slightly when jaw drops, like a cartoon hinge
-  const headTilt  = jawOpen * 0.22;               // upper half shifts up as jaw opens
+  // Show mouth-open image when a coin is within 160 px, else mouth-closed
+  let nearCoin = false;
+  for (const c of coins) {
+    if (c.collected) continue;
+    const dx = PLAYER_X - c.x;
+    const dy = playerY  - c.y;
+    if (dx * dx + dy * dy < 160 * 160) { nearCoin = true; break; }
+  }
+  const img = nearCoin
+    ? (playerImgOpen  || playerImgClosed)
+    : (playerImgClosed || playerImgOpen);
 
-  if (playerImg && playerImg.complete && playerImg.naturalWidth > 0) {
-    // ── Upper half (forehead + eyes + nose), shifts up when jaw opens ──
-    // Height stays splitRelY so its bottom edge lands exactly at gapTop (= splitY - headTilt),
-    // perfectly meeting the mouth-gap rectangle with no overlap.
+  if (img && img.complete && img.naturalWidth > 0) {
     ctx.save();
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
-    ctx.beginPath(); ctx.rect(x, y - headTilt, diam, splitRelY); ctx.clip();
-    drawImgCover(playerImg, x, y - headTilt, diam, diam);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.clip();
+    drawImgCover(img, x, y, diam, diam);
     ctx.restore();
-
-    // ── Lower half (chin / jaw), shifted down by jawOpen ──
-    ctx.save();
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
-    ctx.beginPath(); ctx.rect(x, y + splitRelY + jawOpen, diam, diam * (1 - splitFrac) + 12); ctx.clip();
-    drawImgCover(playerImg, x, y + jawOpen, diam, diam);
-    ctx.restore();
-
-    // ── Mouth gap (dark interior + teeth) — spans upper-tilt to lower-jaw ──
-    const gapTop = y + splitRelY - headTilt;
-    const gapH   = jawOpen + headTilt + 1;
-    ctx.save();
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
-    ctx.fillStyle = '#1a0404';
-    ctx.fillRect(x, gapTop, diam, gapH);
-    if (jawOpen > 3) {
-      ctx.fillStyle = '#f0ece0';
-      const tw = diam * 0.56;
-      const th = Math.min(7, gapH * 0.28);  // 28% of gap height keeps teeth proportional to jaw size
-      ctx.fillRect(cx - tw / 2, gapTop,              tw, th);  // upper teeth
-      ctx.fillRect(cx - tw / 2, gapTop + gapH - th,  tw, th);  // lower teeth
-    }
-    ctx.restore();
-
   } else {
-    // ── Fallback: animated smiley with exaggerated jaw ──
+    // Fallback: simple smiley face
     ctx.save();
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
     ctx.fillStyle = '#f5c57a';
@@ -818,11 +829,14 @@ function drawPlayer() {
     ctx.beginPath(); ctx.arc(cx + r * 0.30, cy - r * 0.14, 5, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#8b3a3a';
     ctx.beginPath();
-    ctx.ellipse(cx, cy + r * 0.22, r * 0.38, jawOpen * 0.55 + 4, 0, 0, Math.PI * 2);
+    if (nearCoin) {
+      ctx.ellipse(cx, cy + r * 0.22, r * 0.38, r * 0.22, 0, 0, Math.PI * 2);
+    } else {
+      ctx.arc(cx, cy + r * 0.18, r * 0.30, 0, Math.PI);
+    }
     ctx.fill();
     ctx.restore();
   }
-
 }
 
 // ═══════════════════════════════════════════════════════

@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chomper Man</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: linear-gradient(135deg, #1a1a2e, #0f3460);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── UPLOAD SCREEN ── */
+    #uploadScreen {
+      text-align: center;
+      color: #fff;
+      padding: 40px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
+      width: 420px;
+      max-width: 95vw;
+    }
+
+    #uploadScreen h1 {
+      font-size: 2.6em;
+      color: #ffd700;
+      text-shadow: 0 0 20px rgba(255,215,0,0.4);
+      margin-bottom: 4px;
+    }
+
+    #uploadScreen .subtitle { color: #aaa; font-size: 1em; margin-bottom: 22px; }
+
+    .upload-area {
+      border: 2px dashed rgba(255,215,0,0.5);
+      border-radius: 12px;
+      padding: 26px 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: rgba(255,215,0,0.04);
+      margin-bottom: 12px;
+    }
+    .upload-area:hover { border-color: #ffd700; background: rgba(255,215,0,0.1); }
+    .upload-area p { color: #ddd; font-size: 1.05em; }
+    .upload-area .hint { color: #888; font-size: 0.85em; margin-top: 5px; }
+
+    #imageUpload { display: none; }
+
+    #previewWrap { margin: 10px 0; }
+    #preview {
+      width: 110px; height: 110px;
+      border-radius: 50%; object-fit: cover;
+      border: 3px solid #ffd700;
+      box-shadow: 0 0 14px rgba(255,215,0,0.35);
+    }
+    #previewLabel { color: #aaa; font-size: 0.85em; margin-top: 5px; }
+
+    .instructions {
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      padding: 11px 15px;
+      margin: 12px 0;
+      font-size: 0.9em;
+      color: #ccc;
+      text-align: left;
+      line-height: 1.9;
+    }
+
+    #startBtn {
+      background: linear-gradient(135deg, #ffd700, #ff8c00);
+      color: #1a1a2e;
+      border: none;
+      padding: 12px 36px;
+      font-size: 1.2em;
+      font-weight: bold;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(255,200,0,0.3);
+      margin-top: 6px;
+    }
+    #startBtn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,200,0,0.5); }
+    #startBtn:disabled { background: #555; color: #888; cursor: not-allowed; box-shadow: none; }
+
+    /* ── GAME CONTAINER ── */
+    #gameWrap { display: none; position: relative; }
+    #gameCanvas { display: block; border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
+
+    /* On-screen directional buttons */
+    #touchControls {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .touchBtn {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.16);
+      border: 2px solid rgba(255,255,255,0.32);
+      color: #fff;
+      font-size: 1.4em;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      user-select: none; -webkit-user-select: none;
+      touch-action: none;
+    }
+    .touchBtn:active { background: rgba(255,255,255,0.35); }
+
+    /* ── GAME OVER OVERLAY ── */
+    #gameOverOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(4px);
+      justify-content: center;
+      align-items: center;
+      z-index: 200;
+    }
+    #gameOverOverlay.show { display: flex; }
+
+    .go-box {
+      background: rgba(8,8,25,0.96);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 38px 52px;
+      text-align: center;
+      color: #fff;
+    }
+    .go-box h2 { font-size: 2.3em; color: #ff4444; margin-bottom: 6px; }
+    .go-score  { font-size: 1.55em; color: #ffd700; margin: 10px 0 3px; }
+    .go-best   { font-size: 0.95em; color: #aaa; margin-bottom: 20px; }
+    .go-btns   { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #ffd700, #ff8c00);
+      color: #1a1a2e; border: none;
+      padding: 11px 26px; font-size: 1em; font-weight: bold;
+      border-radius: 20px; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-primary:hover { transform: translateY(-2px); }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.1); color: #ddd;
+      border: 1px solid rgba(255,255,255,0.25);
+      padding: 11px 26px; font-size: 1em;
+      border-radius: 20px; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.2); }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════ UPLOAD SCREEN ══════════════ -->
+<div id="uploadScreen">
+  <h1>😄 Chomper Man</h1>
+  <p class="subtitle">The face-chomping side-scroller!</p>
+
+  <div class="upload-area" id="uploadArea">
+    <p>📸 Click to upload your face photo</p>
+    <p class="hint">Your face becomes the chomping game character!</p>
+  </div>
+  <input type="file" id="imageUpload" accept="image/*">
+
+  <div id="previewWrap" style="display:none">
+    <img id="preview" src="" alt="Face preview">
+    <p id="previewLabel">Looking great — ready to chomp! 🎉</p>
+  </div>
+
+  <div class="instructions">
+    <div>⬆️ <b>Up Arrow / W</b> &mdash; Move up</div>
+    <div>⬇️ <b>Down Arrow / S</b> &mdash; Move down</div>
+    <div>🪙 Collect gold coins to earn points</div>
+    <div>🧱 Dodge the green pipes — or it's game over!</div>
+  </div>
+
+  <button id="startBtn" disabled>▶ Start Game</button>
+</div>
+
+<!-- ══════════════ GAME ══════════════ -->
+<div id="gameWrap">
+  <canvas id="gameCanvas"></canvas>
+  <div id="touchControls">
+    <button class="touchBtn" id="upBtn">▲</button>
+    <button class="touchBtn" id="downBtn">▼</button>
+  </div>
+</div>
+
+<!-- ══════════════ GAME OVER ══════════════ -->
+<div id="gameOverOverlay">
+  <div class="go-box">
+    <h2>💀 Game Over!</h2>
+    <div class="go-score">Score: <span id="goScore">0</span></div>
+    <div class="go-best">Best: <span id="goBest">0</span></div>
+    <div class="go-btns">
+      <button class="btn-primary"   id="restartBtn">🔄 Play Again</button>
+      <button class="btn-secondary" id="newFaceBtn">📸 Change Face</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════
+const CANVAS_W  = 800;
+const CANVAS_H  = 450;
+const GROUND_Y  = 400;   // y-coordinate of ground surface
+const CEIL_Y    = 40;    // y-coordinate of ceiling
+const PLAYER_X  = 140;   // fixed horizontal position of player centre
+const PLAYER_R  = 38;    // player (face circle) radius in px
+const MOVE_SPEED = 5;    // vertical px per frame when key held
+
+// ═══════════════════════════════════════════════════════
+// CANVAS
+// ═══════════════════════════════════════════════════════
+const canvas = document.getElementById('gameCanvas');
+const ctx    = canvas.getContext('2d');
+canvas.width  = CANVAS_W;
+canvas.height = CANVAS_H;
+
+// ═══════════════════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════════════════
+let playerImg  = null;   // loaded HTMLImageElement
+let playerY    = 0;      // player centre Y
+let score      = 0;
+let bestScore  = 0;
+let frame      = 0;
+let speed      = 2.5;    // world scroll speed (px/frame)
+let nextPipeAt = 130;    // frame number when next pipe pair spawns
+let running    = false;
+let animId     = null;
+
+const keys      = {};
+let obstacles   = [];    // { x, y, w, h }
+let coins       = [];    // { x, y, r, spin, collected }
+let particles   = [];    // { x, y, vx, vy, life, maxLife }
+let floatTexts  = [];    // { x, y, life, maxLife }
+let clouds      = [];    // { x, y, scale }
+let bgStripe    = 0;     // ground stripe scroll offset
+let jawPhase    = 0;     // jaw animation angle (radians)
+
+// ═══════════════════════════════════════════════════════
+// UI REFS
+// ═══════════════════════════════════════════════════════
+const uploadScreen    = document.getElementById('uploadScreen');
+const gameWrap        = document.getElementById('gameWrap');
+const gameOverOverlay = document.getElementById('gameOverOverlay');
+const uploadArea      = document.getElementById('uploadArea');
+const fileInput       = document.getElementById('imageUpload');
+const previewEl       = document.getElementById('preview');
+const previewWrap     = document.getElementById('previewWrap');
+const startBtn        = document.getElementById('startBtn');
+
+// ═══════════════════════════════════════════════════════
+// UPLOAD / PREVIEW
+// ═══════════════════════════════════════════════════════
+uploadArea.addEventListener('click', () => fileInput.click());
+
+uploadArea.addEventListener('dragover', e => {
+  e.preventDefault();
+  uploadArea.style.borderColor = '#ffd700';
+});
+uploadArea.addEventListener('dragleave', () => {
+  uploadArea.style.borderColor = '';
+});
+uploadArea.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadArea.style.borderColor = '';
+  loadImageFile(e.dataTransfer.files[0]);
+});
+
+fileInput.addEventListener('change', e => loadImageFile(e.target.files[0]));
+
+function loadImageFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    previewEl.src = ev.target.result;
+    previewWrap.style.display = 'block';
+    startBtn.disabled = false;
+    playerImg = new Image();
+    playerImg.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ═══════════════════════════════════════════════════════
+// SCREEN TRANSITIONS
+// ═══════════════════════════════════════════════════════
+startBtn.addEventListener('click', () => {
+  uploadScreen.style.display = 'none';
+  gameWrap.style.display     = 'block';
+  initGame();
+});
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+  gameOverOverlay.classList.remove('show');
+  initGame();
+});
+
+document.getElementById('newFaceBtn').addEventListener('click', () => {
+  gameOverOverlay.classList.remove('show');
+  running = false;
+  gameWrap.style.display     = 'none';
+  uploadScreen.style.display = 'block';
+});
+
+// ═══════════════════════════════════════════════════════
+// INPUT — KEYBOARD
+// ═══════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) {
+    e.preventDefault();
+  }
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// ═══════════════════════════════════════════════════════
+// INPUT — ON-SCREEN BUTTONS
+// ═══════════════════════════════════════════════════════
+function addHoldEvents(btn, keyName) {
+  btn.addEventListener('pointerdown',  e => { e.preventDefault(); keys[keyName] = true;  });
+  btn.addEventListener('pointerup',    e => { e.preventDefault(); keys[keyName] = false; });
+  btn.addEventListener('pointerleave', ()  => { keys[keyName] = false; });
+}
+addHoldEvents(document.getElementById('upBtn'),   'ArrowUp');
+addHoldEvents(document.getElementById('downBtn'), 'ArrowDown');
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+function initGame() {
+  score      = 0;
+  frame      = 0;
+  speed      = 2.5;
+  nextPipeAt = 130;
+  playerY    = (CEIL_Y + GROUND_Y) / 2;
+  obstacles  = [];
+  coins      = [];
+  particles  = [];
+  floatTexts = [];
+  bgStripe   = 0;
+  jawPhase   = 0;
+
+  clouds = Array.from({ length: 5 }, (_, i) => ({
+    x: i * 180 + 60,
+    y: 38 + Math.random() * 65,
+    scale: 0.65 + Math.random() * 0.55,
+  }));
+
+  if (animId) cancelAnimationFrame(animId);
+  running = true;
+  loop();
+}
+
+// ═══════════════════════════════════════════════════════
+// SPAWNING
+// ═══════════════════════════════════════════════════════
+function spawnPipePair() {
+  // Gap between pipes narrows as game progresses
+  const GAP    = Math.max(110, 155 - Math.floor(frame / 120));
+  const usable = GROUND_Y - CEIL_Y - GAP;
+  const gapTop = CEIL_Y + Math.random() * usable;
+  const gapBot = gapTop + GAP;
+  const x      = CANVAS_W + 30;
+  const W      = 58;
+
+  // Top pipe
+  if (gapTop - CEIL_Y > 5) {
+    obstacles.push({ x, y: CEIL_Y, w: W, h: gapTop - CEIL_Y });
+  }
+  // Bottom pipe
+  if (GROUND_Y - gapBot > 5) {
+    obstacles.push({ x, y: gapBot, w: W, h: GROUND_Y - gapBot });
+  }
+  // Coin centred in the gap
+  if (Math.random() > 0.15) {
+    coins.push({
+      x: x + W / 2 + 55,
+      y: gapTop + GAP / 2,
+      r: 15,
+      spin: Math.random() * Math.PI,
+      collected: false,
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// COLLISION
+// ═══════════════════════════════════════════════════════
+function hitTest() {
+  // Circle vs AABB (shrink radius slightly for forgiveness)
+  const sr = PLAYER_R - 6;
+  for (const o of obstacles) {
+    const nearX = Math.max(o.x, Math.min(PLAYER_X, o.x + o.w));
+    const nearY = Math.max(o.y, Math.min(playerY,  o.y + o.h));
+    const dx = PLAYER_X - nearX;
+    const dy = playerY  - nearY;
+    if (dx * dx + dy * dy < sr * sr) return true;
+  }
+  return false;
+}
+
+function collectCoins() {
+  for (const c of coins) {
+    if (c.collected) continue;
+    const dx = PLAYER_X - c.x;
+    const dy = playerY  - c.y;
+    if (dx * dx + dy * dy < (PLAYER_R + c.r - 4) ** 2) {
+      c.collected = true;
+      score++;
+      burst(c.x, c.y);
+      floatTexts.push({ x: c.x, y: c.y, life: 45, maxLife: 45 });
+    }
+  }
+}
+
+function burst(x, y) {
+  for (let i = 0; i < 10; i++) {
+    const a = (Math.PI * 2 * i) / 10;
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * (2 + Math.random() * 2),
+      vy: Math.sin(a) * (2 + Math.random() * 2),
+      life: 30, maxLife: 30,
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// UPDATE
+// ═══════════════════════════════════════════════════════
+function update() {
+  // Move player (clamped to play area)
+  if (keys['ArrowUp'] || keys['w'] || keys['W']) {
+    playerY = Math.max(CEIL_Y + PLAYER_R, playerY - MOVE_SPEED);
+  }
+  if (keys['ArrowDown'] || keys['s'] || keys['S']) {
+    playerY = Math.min(GROUND_Y - PLAYER_R, playerY + MOVE_SPEED);
+  }
+
+  // Jaw chomps continuously
+  jawPhase += 0.15;
+
+  // Ground stripe scroll
+  bgStripe = (bgStripe + speed * 0.4) % 40;
+
+  // Clouds parallax
+  for (const cl of clouds) {
+    cl.x -= speed * 0.25;
+    if (cl.x < -200) { cl.x = CANVAS_W + 60; cl.y = 32 + Math.random() * 68; }
+  }
+
+  // Obstacles
+  for (const o of obstacles) o.x -= speed;
+  obstacles = obstacles.filter(o => o.x + o.w > -10);
+
+  // Coins
+  for (const c of coins) { c.x -= speed; c.spin += 0.07; }
+  coins = coins.filter(c => c.x > -40);
+
+  // Particles
+  for (const p of particles) { p.x += p.vx; p.y += p.vy; p.life--; }
+  particles = particles.filter(p => p.life > 0);
+
+  // Floating "+1" texts
+  for (const t of floatTexts) t.life--;
+  floatTexts = floatTexts.filter(t => t.life > 0);
+
+  // Spawn pipe pairs
+  if (frame >= nextPipeAt) {
+    spawnPipePair();
+    nextPipeAt = frame + Math.max(60, Math.round(130 / (speed / 2.5)));
+  }
+
+  // Speed ramp
+  if (frame > 0 && frame % 400 === 0) {
+    speed = Math.min(7, speed + 0.25);
+  }
+
+  frame++;
+  collectCoins();
+  if (hitTest()) endGame();
+}
+
+// ═══════════════════════════════════════════════════════
+// DRAW — BACKGROUND
+// ═══════════════════════════════════════════════════════
+function drawBg() {
+  // Sky gradient
+  const sky = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+  sky.addColorStop(0, '#5fa8d3');
+  sky.addColorStop(1, '#c9e8f5');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, CANVAS_W, GROUND_Y);
+
+  // Clouds
+  ctx.fillStyle = 'rgba(255,255,255,0.82)';
+  for (const cl of clouds) drawCloud(cl.x, cl.y, cl.scale);
+
+  // Ground
+  const gnd = ctx.createLinearGradient(0, GROUND_Y, 0, CANVAS_H);
+  gnd.addColorStop(0,    '#5a9944');
+  gnd.addColorStop(0.25, '#4a8835');
+  gnd.addColorStop(1,    '#2e6020');
+  ctx.fillStyle = gnd;
+  ctx.fillRect(0, GROUND_Y, CANVAS_W, CANVAS_H - GROUND_Y);
+
+  // Ground top highlight strip
+  ctx.fillStyle = '#72b84a';
+  ctx.fillRect(0, GROUND_Y, CANVAS_W, 7);
+
+  // Scrolling diagonal stripes on ground
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+  ctx.lineWidth = 2;
+  const sg = 40;
+  for (let i = -2; i < CANVAS_W / sg + 2; i++) {
+    const sx = i * sg - bgStripe;
+    ctx.beginPath();
+    ctx.moveTo(sx, GROUND_Y);
+    ctx.lineTo(sx - 25, CANVAS_H);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawCloud(x, y, scale) {
+  const w = 100 * scale, h = 36 * scale;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.beginPath();
+  ctx.ellipse(w * 0.50, h * 0.55, w * 0.50, h * 0.42, 0, 0, Math.PI * 2);
+  ctx.ellipse(w * 0.28, h * 0.65, w * 0.30, h * 0.48, 0, 0, Math.PI * 2);
+  ctx.ellipse(w * 0.72, h * 0.65, w * 0.26, h * 0.40, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════
+// DRAW — PIPES
+// ═══════════════════════════════════════════════════════
+function drawPipes() {
+  for (const o of obstacles) {
+    // Body gradient
+    const g = ctx.createLinearGradient(o.x, 0, o.x + o.w, 0);
+    g.addColorStop(0,    '#2d6e2d');
+    g.addColorStop(0.25, '#4cb84c');
+    g.addColorStop(0.65, '#3da83d');
+    g.addColorStop(1,    '#1e5e1e');
+    ctx.fillStyle = g;
+    ctx.fillRect(o.x, o.y, o.w, o.h);
+
+    // Cap at the open end
+    const capH = 22, capW = o.w + 12, capX = o.x - 6;
+    const capY = (o.y === CEIL_Y) ? o.y + o.h - capH : o.y;
+    const cg = ctx.createLinearGradient(capX, 0, capX + capW, 0);
+    cg.addColorStop(0,    '#1e5e1e');
+    cg.addColorStop(0.30, '#4cb84c');
+    cg.addColorStop(0.70, '#3da83d');
+    cg.addColorStop(1,    '#1e5e1e');
+    ctx.fillStyle = cg;
+    ctx.fillRect(capX, capY, capW, capH);
+
+    // Outlines
+    ctx.strokeStyle = '#154a15';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(o.x, o.y, o.w, o.h);
+    ctx.strokeRect(capX, capY, capW, capH);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// DRAW — COINS
+// ═══════════════════════════════════════════════════════
+function drawCoins() {
+  for (const c of coins) {
+    if (c.collected) continue;
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.scale(Math.abs(Math.cos(c.spin)), 1);   // spinning effect
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.beginPath();
+    ctx.ellipse(2, 3, c.r, c.r, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body
+    const cg = ctx.createRadialGradient(-c.r * 0.3, -c.r * 0.3, c.r * 0.1, 0, 0, c.r);
+    cg.addColorStop(0,   '#ffe566');
+    cg.addColorStop(0.5, '#ffd700');
+    cg.addColorStop(1,   '#c8a000');
+    ctx.fillStyle = cg;
+    ctx.beginPath();
+    ctx.arc(0, 0, c.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.36)';
+    ctx.beginPath();
+    ctx.ellipse(-c.r * 0.22, -c.r * 0.28, c.r * 0.32, c.r * 0.20, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Dollar sign
+    ctx.fillStyle = '#9a7800';
+    ctx.font = `bold ${c.r}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('$', 0, 1);
+
+    ctx.restore();
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// DRAW — PLAYER (Terrance & Phillip jaw animation)
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Draw img cropped to fill the rect (x,y,w,h) — object-fit: cover behaviour.
+ * Called inside an already-clipped context.
+ */
+function drawImgCover(img, x, y, w, h) {
+  const ar  = img.naturalWidth / img.naturalHeight;
+  const tar = w / h;
+  let sx, sy, sw, sh;
+  if (ar > tar) {
+    sh = img.naturalHeight; sw = sh * tar;
+    sx = (img.naturalWidth  - sw) / 2; sy = 0;
+  } else {
+    sw = img.naturalWidth; sh = sw / tar;
+    sx = 0; sy = (img.naturalHeight - sh) / 2;
+  }
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+}
+
+function drawPlayer() {
+  const cx   = PLAYER_X;
+  const cy   = playerY;
+  const r    = PLAYER_R;
+  const diam = r * 2;
+  const x    = cx - r;
+  const y    = cy - r;
+
+  // Drop shadow on ground
+  ctx.fillStyle = 'rgba(0,0,0,0.20)';
+  ctx.beginPath();
+  ctx.ellipse(cx, GROUND_Y - 1, r * 0.65, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Jaw open amount: oscillates 0 … 13 px
+  const jawOpen   = Math.abs(Math.sin(jawPhase)) * 13;
+  const splitFrac = 0.60;            // face split at 60% down (below nose)
+  const splitRelY = diam * splitFrac; // px from top of bounding square
+
+  if (playerImg && playerImg.complete && playerImg.naturalWidth > 0) {
+    // ── Upper half (forehead + eyes + nose) ──
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip(); // circle
+    ctx.beginPath(); ctx.rect(x, y, diam, splitRelY);                 // top portion
+    ctx.clip();
+    drawImgCover(playerImg, x, y, diam, diam);
+    ctx.restore();
+
+    // ── Lower half (chin / jaw), shifted down by jawOpen ──
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
+    ctx.beginPath(); ctx.rect(x, y + splitRelY + jawOpen, diam, diam * (1 - splitFrac) + 12); ctx.clip();
+    drawImgCover(playerImg, x, y + jawOpen, diam, diam);
+    ctx.restore();
+
+    // ── Mouth gap (dark interior + teeth) ──
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
+    ctx.fillStyle = '#1a0404';
+    ctx.fillRect(x, y + splitRelY, diam, jawOpen + 1);
+    if (jawOpen > 3) {
+      ctx.fillStyle = '#f0ece0';
+      const tw = diam * 0.56;
+      const th = Math.min(6, jawOpen * 0.38);
+      ctx.fillRect(cx - tw / 2, y + splitRelY,                tw, th);  // upper teeth
+      ctx.fillRect(cx - tw / 2, y + splitRelY + jawOpen - th, tw, th);  // lower teeth
+    }
+    ctx.restore();
+
+  } else {
+    // ── Fallback: animated smiley ──
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
+    ctx.fillStyle = '#f5c57a';
+    ctx.fillRect(x, y, diam, diam);
+    ctx.fillStyle = '#3a2a1a';
+    ctx.beginPath(); ctx.arc(cx - r * 0.30, cy - r * 0.14, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + r * 0.30, cy - r * 0.14, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#8b3a3a';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + r * 0.30, r * 0.30, jawOpen / 2 + 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Gold circle border
+  ctx.strokeStyle = '#ffd700';
+  ctx.lineWidth   = 3.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+// ═══════════════════════════════════════════════════════
+// DRAW — PARTICLES & FLOATING TEXTS
+// ═══════════════════════════════════════════════════════
+function drawParticles() {
+  for (const p of particles) {
+    const a = p.life / p.maxLife;
+    ctx.fillStyle = `rgba(255,215,0,${a})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 5 * a, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawFloatTexts() {
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font         = 'bold 20px Arial';
+  for (const t of floatTexts) {
+    const a  = t.life / t.maxLife;
+    const dy = (1 - a) * 32;
+    ctx.fillStyle = `rgba(255,215,0,${a})`;
+    ctx.fillText('+1', t.x, t.y - dy);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// DRAW — HUD
+// ═══════════════════════════════════════════════════════
+function drawHUD() {
+  // Score
+  ctx.fillStyle = 'rgba(0,0,0,0.38)';
+  rrect(CANVAS_W - 128, 10, 118, 38, 8);
+  ctx.fill();
+  ctx.fillStyle      = '#ffd700';
+  ctx.font           = 'bold 21px Arial';
+  ctx.textAlign      = 'right';
+  ctx.textBaseline   = 'middle';
+  ctx.fillText(`🪙 ${score}`, CANVAS_W - 14, 29);
+
+  // Speed indicator
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  rrect(10, 10, 118, 28, 6);
+  ctx.fill();
+  ctx.fillStyle    = '#ddd';
+  ctx.font         = '13px Arial';
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`Speed ×${speed.toFixed(1)}`, 18, 24);
+}
+
+/** Utility: define a rounded rectangle path (call fill/stroke after). */
+function rrect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y,   x + w, y + r);
+  ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// ═══════════════════════════════════════════════════════
+// GAME LOOP
+// ═══════════════════════════════════════════════════════
+function loop() {
+  if (!running) return;
+  update();
+  ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+  drawBg();
+  drawPipes();
+  drawCoins();
+  drawPlayer();
+  drawParticles();
+  drawFloatTexts();
+  drawHUD();
+  animId = requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════════════════════
+// GAME OVER
+// ═══════════════════════════════════════════════════════
+function endGame() {
+  running = false;
+  if (score > bestScore) bestScore = score;
+  document.getElementById('goScore').textContent = score;
+  document.getElementById('goBest').textContent  = bestScore;
+  gameOverOverlay.classList.add('show');
+}
+
+// ═══════════════════════════════════════════════════════
+// BOOTSTRAP
+// ═══════════════════════════════════════════════════════
+uploadScreen.style.display = 'block';
+gameWrap.style.display     = 'none';
+gameOverOverlay.classList.remove('show');
+</script>
+</body>
+</html>

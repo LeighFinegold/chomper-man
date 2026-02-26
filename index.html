@@ -222,6 +222,7 @@
   <div class="instructions">
     <div>⬆️ <b>Up Arrow / W</b> &mdash; Move up</div>
     <div>⬇️ <b>Down Arrow / S</b> &mdash; Move down</div>
+    <div>📱 <b>Touch top / bottom</b> of screen to move</div>
     <div>🪙 Collect gold coins to earn points</div>
     <div>🧱 Dodge the green pipes — or it's game over!</div>
   </div>
@@ -411,6 +412,25 @@ addHoldEvents(document.getElementById('upBtn'),   'ArrowUp');
 addHoldEvents(document.getElementById('downBtn'), 'ArrowDown');
 
 // ═══════════════════════════════════════════════════════
+// INPUT — CANVAS TOUCH (touch upper half = up, lower half = down)
+// ═══════════════════════════════════════════════════════
+function handleCanvasTouch(e) {
+  e.preventDefault();
+  if (!e.touches.length) return;
+  const rect  = canvas.getBoundingClientRect();
+  const touch = e.touches[0];
+  const relY  = touch.clientY - rect.top;
+  keys['ArrowUp']   = relY < rect.height / 2;
+  keys['ArrowDown'] = relY >= rect.height / 2;
+}
+canvas.addEventListener('touchstart', handleCanvasTouch, { passive: false });
+canvas.addEventListener('touchmove',  handleCanvasTouch, { passive: false });
+canvas.addEventListener('touchend',   () => {
+  keys['ArrowUp']   = false;
+  keys['ArrowDown'] = false;
+});
+
+// ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
 function initGame() {
@@ -523,8 +543,20 @@ function update() {
     playerY = Math.min(GROUND_Y - PLAYER_R, playerY + MOVE_SPEED);
   }
 
-  // Jaw chomps — snappier Terrance & Phillip tempo
-  jawPhase += 0.18;
+  // Jaw opens only when a coin is nearby (within 160 px)
+  const COIN_OPEN_DIST_SQ = 160 * 160;
+  let nearestCoinDistSq = Infinity;
+  for (const c of coins) {
+    if (c.collected) continue;
+    const dx = PLAYER_X - c.x;
+    const dy = playerY  - c.y;
+    nearestCoinDistSq = Math.min(nearestCoinDistSq, dx * dx + dy * dy);
+  }
+  if (nearestCoinDistSq < COIN_OPEN_DIST_SQ) {
+    jawPhase += 0.18;
+  } else {
+    jawPhase = 0;
+  }
 
   // Ground stripe scroll
   bgStripe = (bgStripe + speed * 0.4) % 40;
@@ -791,12 +823,6 @@ function drawPlayer() {
     ctx.restore();
   }
 
-  // Gold circle border
-  ctx.strokeStyle = '#ffd700';
-  ctx.lineWidth   = 3.5;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.stroke();
 }
 
 // ═══════════════════════════════════════════════════════

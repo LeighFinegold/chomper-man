@@ -273,7 +273,7 @@ const CEIL_Y          = 40;   // y-coordinate of ceiling
 const PLAYER_X        = 140;  // fixed horizontal position of player centre
 const PLAYER_R        = 38;   // player (face circle) radius in px
 const MOVE_SPEED      = 5;    // vertical px per frame when key held
-const FACE_SPLIT_FRAC = 0.60; // face split point for jaw animation (60% down)
+const FACE_SPLIT_FRAC = 0.52; // face split point for jaw animation (52% down — centred for big T&P flap)
 
 // ═══════════════════════════════════════════════════════
 // CANVAS
@@ -523,8 +523,8 @@ function update() {
     playerY = Math.min(GROUND_Y - PLAYER_R, playerY + MOVE_SPEED);
   }
 
-  // Jaw chomps continuously
-  jawPhase += 0.15;
+  // Jaw chomps — snappier Terrance & Phillip tempo
+  jawPhase += 0.18;
 
   // Ground stripe scroll
   bgStripe = (bgStripe + speed * 0.4) % 40;
@@ -733,18 +733,23 @@ function drawPlayer() {
   ctx.ellipse(cx, GROUND_Y - 1, r * 0.65, 8, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Jaw open amount: oscillates 0 … 13 px
-  const jawOpen   = Math.abs(Math.sin(jawPhase)) * 13;
+  // Terrance & Phillip style: snappy wide jaw drop.
+  // pow(0.4) makes the jaw snap open fast, hold wide, then snap shut — comedic floppy effect.
+  const jawRaw    = Math.abs(Math.sin(jawPhase));
+  const jawOpen   = Math.pow(jawRaw, 0.4) * 26;   // up to 26 px, snappy open
   const splitFrac = FACE_SPLIT_FRAC;
-  const splitRelY = diam * splitFrac; // px from top of bounding square
+  const splitRelY = diam * splitFrac;              // px from top of bounding square
+  // "Hinged head": upper face tilts back slightly when jaw drops, like a cartoon hinge
+  const headTilt  = jawOpen * 0.22;               // upper half shifts up as jaw opens
 
   if (playerImg && playerImg.complete && playerImg.naturalWidth > 0) {
-    // ── Upper half (forehead + eyes + nose) ──
+    // ── Upper half (forehead + eyes + nose), shifts up when jaw opens ──
+    // Height stays splitRelY so its bottom edge lands exactly at gapTop (= splitY - headTilt),
+    // perfectly meeting the mouth-gap rectangle with no overlap.
     ctx.save();
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip(); // circle
-    ctx.beginPath(); ctx.rect(x, y, diam, splitRelY);                 // top portion
-    ctx.clip();
-    drawImgCover(playerImg, x, y, diam, diam);
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
+    ctx.beginPath(); ctx.rect(x, y - headTilt, diam, splitRelY); ctx.clip();
+    drawImgCover(playerImg, x, y - headTilt, diam, diam);
     ctx.restore();
 
     // ── Lower half (chin / jaw), shifted down by jawOpen ──
@@ -754,22 +759,24 @@ function drawPlayer() {
     drawImgCover(playerImg, x, y + jawOpen, diam, diam);
     ctx.restore();
 
-    // ── Mouth gap (dark interior + teeth) ──
+    // ── Mouth gap (dark interior + teeth) — spans upper-tilt to lower-jaw ──
+    const gapTop = y + splitRelY - headTilt;
+    const gapH   = jawOpen + headTilt + 1;
     ctx.save();
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
     ctx.fillStyle = '#1a0404';
-    ctx.fillRect(x, y + splitRelY, diam, jawOpen + 1);
+    ctx.fillRect(x, gapTop, diam, gapH);
     if (jawOpen > 3) {
       ctx.fillStyle = '#f0ece0';
       const tw = diam * 0.56;
-      const th = Math.min(6, jawOpen * 0.38);
-      ctx.fillRect(cx - tw / 2, y + splitRelY,                tw, th);  // upper teeth
-      ctx.fillRect(cx - tw / 2, y + splitRelY + jawOpen - th, tw, th);  // lower teeth
+      const th = Math.min(7, gapH * 0.28);  // 28% of gap height keeps teeth proportional to jaw size
+      ctx.fillRect(cx - tw / 2, gapTop,              tw, th);  // upper teeth
+      ctx.fillRect(cx - tw / 2, gapTop + gapH - th,  tw, th);  // lower teeth
     }
     ctx.restore();
 
   } else {
-    // ── Fallback: animated smiley ──
+    // ── Fallback: animated smiley with exaggerated jaw ──
     ctx.save();
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
     ctx.fillStyle = '#f5c57a';
@@ -779,7 +786,7 @@ function drawPlayer() {
     ctx.beginPath(); ctx.arc(cx + r * 0.30, cy - r * 0.14, 5, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#8b3a3a';
     ctx.beginPath();
-    ctx.ellipse(cx, cy + r * 0.30, r * 0.30, jawOpen / 2 + 4, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, cy + r * 0.22, r * 0.38, jawOpen * 0.55 + 4, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }

@@ -216,13 +216,14 @@
 // ═══════════════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════════════
-const CANVAS_W  = 800;
-const CANVAS_H  = 450;
-const GROUND_Y  = 400;   // y-coordinate of ground surface
-const CEIL_Y    = 40;    // y-coordinate of ceiling
-const PLAYER_X  = 140;   // fixed horizontal position of player centre
-const PLAYER_R  = 38;    // player (face circle) radius in px
-const MOVE_SPEED = 5;    // vertical px per frame when key held
+const CANVAS_W        = 800;
+const CANVAS_H        = 450;
+const GROUND_Y        = 400;  // y-coordinate of ground surface
+const CEIL_Y          = 40;   // y-coordinate of ceiling
+const PLAYER_X        = 140;  // fixed horizontal position of player centre
+const PLAYER_R        = 38;   // player (face circle) radius in px
+const MOVE_SPEED      = 5;    // vertical px per frame when key held
+const FACE_SPLIT_FRAC = 0.60; // face split point for jaw animation (60% down)
 
 // ═══════════════════════════════════════════════════════
 // CANVAS
@@ -486,7 +487,7 @@ function update() {
   // Spawn pipe pairs
   if (frame >= nextPipeAt) {
     spawnPipePair();
-    nextPipeAt = frame + Math.max(60, Math.round(130 / (speed / 2.5)));
+    nextPipeAt = frame + Math.max(60, Math.round(325 / speed));
   }
 
   // Speed ramp
@@ -638,14 +639,14 @@ function drawCoins() {
  * Called inside an already-clipped context.
  */
 function drawImgCover(img, x, y, w, h) {
-  const ar  = img.naturalWidth / img.naturalHeight;
-  const tar = w / h;
+  const aspectRatio       = img.naturalWidth / img.naturalHeight;
+  const targetAspectRatio = w / h;
   let sx, sy, sw, sh;
-  if (ar > tar) {
-    sh = img.naturalHeight; sw = sh * tar;
+  if (aspectRatio > targetAspectRatio) {
+    sh = img.naturalHeight; sw = sh * targetAspectRatio;
     sx = (img.naturalWidth  - sw) / 2; sy = 0;
   } else {
-    sw = img.naturalWidth; sh = sw / tar;
+    sw = img.naturalWidth; sh = sw / targetAspectRatio;
     sx = 0; sy = (img.naturalHeight - sh) / 2;
   }
   ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
@@ -667,7 +668,7 @@ function drawPlayer() {
 
   // Jaw open amount: oscillates 0 … 13 px
   const jawOpen   = Math.abs(Math.sin(jawPhase)) * 13;
-  const splitFrac = 0.60;            // face split at 60% down (below nose)
+  const splitFrac = FACE_SPLIT_FRAC;
   const splitRelY = diam * splitFrac; // px from top of bounding square
 
   if (playerImg && playerImg.complete && playerImg.naturalWidth > 0) {
